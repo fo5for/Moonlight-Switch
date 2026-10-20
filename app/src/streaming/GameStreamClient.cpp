@@ -30,6 +30,7 @@
 #endif
 
 #if defined(__SWITCH__)
+#include "WGRelay.hpp"
 #include <switch.h>
 
 // TODO: Remove when presented in LibNX
@@ -61,16 +62,12 @@ void rebind_server_info(SERVER_DATA& server) {
 }
 
 std::string host_key(const Host& host) {
-    if (!host.mac.empty()) {
-        return "mac:" + host.mac;
-    }
-    if (!host.address.empty()) {
-        return "address:" + host.address;
-    }
-    if (!host.remoteAddress.empty()) {
-        return "remote:" + host.remoteAddress;
-    }
-    return "hostname:" + host.hostname;
+    std::string res =
+        !host.mac.empty() ? "mac:" + host.mac :
+        !host.address.empty() ? "address:" + host.address :
+        !host.remoteAddress.empty() ? "remote:" + host.remoteAddress :
+        "hostname:" + host.hostname;
+    return host.wg_enable ? res + ";" + host.wg_config.endpoint_host + ":" + std::to_string(host.wg_config.endpoint_port) : res;
 }
 
 void merge_discovered_host(std::vector<Host>& hosts, const Host& host) {
@@ -115,17 +112,6 @@ std::string strip_ipv4_port(const std::string& address) {
         return address;
     }
     return address.substr(0, firstColon);
-}
-
-std::string ipv4_port_suffix(const std::string& address) {
-    const auto firstColon = address.find(':');
-    if (firstColon == std::string::npos) {
-        return "";
-    }
-    if (address.find(':', firstColon + 1) != std::string::npos) {
-        return "";
-    }
-    return address.substr(firstColon);
 }
 
 bool connect_to_addresses_sync(const std::vector<std::string>& addresses,
@@ -633,6 +619,9 @@ std::string GameStreamClient::active_address(const Host& host) const {
 
 void GameStreamClient::connect(const Host& host,
                                ServerCallback<SERVER_DATA>& callback) {
+#ifdef __SWITCH__
+    WGRelay::instance().set(host);
+#endif
     connect_to_addresses(host.connection_addresses(), host_key(host), callback);
 }
 

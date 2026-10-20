@@ -216,6 +216,26 @@ endif ()
 
 if (PLATFORM_SWITCH)
     list(REMOVE_ITEM MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/app/src/streaming/audio/SDLAudioRenderer.cpp)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/wg-nx/lwip-relay/src/wg_lwip_relay.cpp)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/wg-nx/lwip-relay/src/wg_netif.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/wg-nx/lwip-relay/src/sys_arch.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/init.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/def.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/inet_chksum.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/ip.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/mem.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/memp.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/netif.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/pbuf.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/tcp.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/tcp_in.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/tcp_out.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/timeouts.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/udp.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/ipv4/ip4.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/ipv4/ip4_addr.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/ipv4/ip4_frag.c)
+    list(APPEND MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/extern/lwip/src/core/ipv4/icmp.c)
 endif ()
 
 set(PLATFORM_OPTION)
@@ -237,6 +257,7 @@ elseif (PLATFORM_SWITCH)
     list(APPEND MAIN_SRC
             ${BOREALIS_LIBRARY}/lib/platforms/switch/switch_wrapper.c
             app/src/switch/wrapper.c
+            app/src/switch/WGRelay.cpp
             )
 elseif (PLATFORM_PSV)
     # VitaSDK itself uses __psp2__, Borealis uses __PSV__, and
@@ -503,6 +524,10 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 if(PLATFORM_SWITCH)
     target_include_directories(${PROJECT_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/lib/switch/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/app/src/switch
+            ${CMAKE_CURRENT_SOURCE_DIR}/extern/wg-nx/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/extern/wg-nx/lwip-relay/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/extern/wg-nx/library/lwip/src/include
     )
 endif ()
 
@@ -665,6 +690,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         ${MOONLIGHT_APP_FFMPEG_LIBS}
         ${MOONLIGHT_APP_SDL_LIBS}
         ${APP_PLATFORM_LIB})
+
+if(PLATFORM_SWITCH)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/extern/wg-nx/libwireguard.a)
+endif ()
 
 if (MULTICAST_DISABLED)
     add_definitions(-DMULTICAST_DISABLED)

@@ -34,6 +34,16 @@ class AddHostTab : public brls::Box
     bool searchBoxIpExists(const std::string& ip);
     
     BRLS_BIND(brls::InputCell, hostIP, "hostIP");
+    BRLS_BIND(brls::BooleanCell, wg_enable, "wg_enable");
+    BRLS_BIND(brls::Header, wg_header, "wg_header");
+    BRLS_BIND(brls::InputCell, private_key, "private_key");
+    BRLS_BIND(brls::Button, gen_key, "gen_key");
+    BRLS_BIND(brls::InputCell, tunnel_ip, "tunnel_ip");
+    BRLS_BIND(brls::InputCell, peer_public_key, "peer_public_key");
+    BRLS_BIND(brls::InputCell, endpoint, "endpoint");
+    BRLS_BIND(brls::InputNumericCell, keepalive_interval, "keepalive_interval");
+    BRLS_BIND(brls::InputNumericCell, mtu, "mtu");
+    BRLS_BIND(brls::InputCell, preshared_key, "preshared_key");
     BRLS_BIND(brls::DetailCell, connect, "connect");
     BRLS_BIND(brls::Box, searchBox, "search_box");
     BRLS_BIND(brls::Box, loader, "loader");

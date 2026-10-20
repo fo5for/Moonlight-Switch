@@ -8,6 +8,25 @@
 #include <utility>
 #include <vector>
 
+#ifdef __SWITCH__
+extern "C" {
+#include "wireguard.h"
+}
+#endif
+
+namespace {
+std::string ipv4_port_suffix(const std::string& address) {
+    const auto firstColon = address.find(':');
+    if (firstColon == std::string::npos) {
+        return "";
+    }
+    if (address.find(':', firstColon + 1) != std::string::npos) {
+        return "";
+    }
+    return address.substr(firstColon);
+}
+}
+
 enum VideoCodec : int { H264, H265, AV1 };
 std::string getVideoCodecName(VideoCodec codec);
 
@@ -45,19 +64,39 @@ struct Host {
     std::string remoteAddress;
     std::string hostname;
     std::string mac;
+#ifdef __SWITCH__
+    bool wg_enable = false;
+    WgConfig wg_config = {};
+#endif
     std::vector<App> favorites;
 
     [[nodiscard]] std::vector<std::string> connection_addresses() const {
         std::vector<std::string> addresses;
-        if (!address.empty())
-            addresses.push_back(address);
-        if (!remoteAddress.empty() && remoteAddress != address)
-            addresses.push_back(remoteAddress);
+#ifdef __SWITCH__
+        if (wg_enable)
+            addresses.push_back(preferred_address());
+        else {
+#endif
+            if (!address.empty())
+                addresses.push_back(address);
+            if (!remoteAddress.empty() && remoteAddress != address)
+                addresses.push_back(remoteAddress);
+#ifdef __SWITCH__
+        }
+#endif
         return addresses;
     }
 
-    [[nodiscard]] std::string preferred_address() const {
+    [[nodiscard]] std::string real_address() const {
         return !address.empty() ? address : remoteAddress;
+    }
+
+    [[nodiscard]] std::string preferred_address() const {
+        return
+#ifdef __SWITCH__
+            wg_enable ? "127.0.0.1" + ipv4_port_suffix(real_address()) :
+#endif
+            real_address();
     }
 
     [[nodiscard]] bool has_address(const std::string& value) const {
@@ -67,6 +106,12 @@ struct Host {
 };
 
 inline bool hosts_match(const Host& lhs, const Host& rhs) {
+    if (lhs.wg_enable && rhs.wg_enable)
+        return std::memcmp(&lhs.wg_config, &rhs.wg_config, sizeof(WgConfig)) == 0 && lhs.real_address() == rhs.real_address();
+    
+    if (lhs.wg_enable != rhs.wg_enable)
+        return false;
+
     if (!lhs.mac.empty() && !rhs.mac.empty())
         return lhs.mac == rhs.mac;
 

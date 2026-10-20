@@ -1,10 +1,16 @@
 #include "Settings.hpp"
+#include "WGRelay.hpp"
 #include <jansson.h>
 #include <algorithm>
 #include <cstring>
 #include <iomanip>
 #include <climits>
 #include <filesystem>
+
+#ifdef __SWITCH__
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#endif
 
 using namespace brls;
 using namespace brls::literals;
@@ -188,6 +194,68 @@ void Settings::load() {
                                 host.mac = json_string_value(mac);
                             }
                         }
+
+#ifdef __SWITCH__
+                        if (json_t* wg_enable = json_object_get(json, "wg_enable")) {
+                            host.wg_enable = json_typeof(wg_enable) == JSON_TRUE;
+                        }
+
+                        if (json_t* wg = json_object_get(json, "wg_config")) {
+                            if (json_typeof(wg) == JSON_OBJECT) {
+                                if (json_t* private_key = json_object_get(wg, "private_key")) {
+                                    if (json_typeof(private_key) == JSON_STRING) {
+                                        wg_key_from_base64(host.wg_config.private_key, json_string_value(private_key));
+                                    }
+                                }
+
+                                if (json_t* tunnel_ip = json_object_get(wg, "tunnel_ip")) {
+                                    if (json_typeof(tunnel_ip) == JSON_STRING) {
+                                        inet_pton(AF_INET, json_string_value(tunnel_ip), &host.wg_config.tunnel_ip);
+                                    }
+                                }
+                                
+                                if (json_t* peer_public_key = json_object_get(wg, "peer_public_key")) {
+                                    if (json_typeof(peer_public_key) == JSON_STRING) {
+                                        wg_key_from_base64(host.wg_config.peer_public_key, json_string_value(peer_public_key));
+                                    }
+                                }
+                                
+                                if (json_t* endpoint_host = json_object_get(wg, "endpoint_host")) {
+                                    if (json_typeof(endpoint_host) == JSON_STRING) {
+                                        std::strncpy(host.wg_config.endpoint_host, json_string_value(endpoint_host), WG_MAX_ENDPOINT);
+                                    }
+                                }
+
+                                if (json_t* endpoint_port = json_object_get(wg, "endpoint_port")) {
+                                    if (json_typeof(endpoint_port) == JSON_INTEGER) {
+                                        host.wg_config.endpoint_port = (uint16_t)json_integer_value(endpoint_port);
+                                    }
+                                }
+
+                                if (json_t* keepalive_interval = json_object_get(wg, "keepalive_interval")) {
+                                    if (json_typeof(keepalive_interval) == JSON_INTEGER) {
+                                        host.wg_config.keepalive_interval = (uint16_t)json_integer_value(keepalive_interval);
+                                    }
+                                }
+
+                                if (json_t* mtu = json_object_get(wg, "mtu")) {
+                                    if (json_typeof(mtu) == JSON_INTEGER) {
+                                        host.wg_config.mtu = (uint16_t)json_integer_value(mtu);
+                                    }
+                                }
+
+                                if (json_t* has_preshared_key = json_object_get(wg, "has_preshared_key")) {
+                                    if (host.wg_config.has_preshared_key = json_typeof(has_preshared_key) == JSON_TRUE) {
+                                        if (json_t* preshared_key = json_object_get(wg, "preshared_key")) {
+                                            if (json_typeof(preshared_key) == JSON_STRING) {
+                                                wg_key_from_base64(host.wg_config.preshared_key, json_string_value(preshared_key));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+#endif
 
                         if (json_t* favorites = json_object_get(json, "favorites")) {
                             size_t size = json_array_size(favorites);
@@ -514,6 +582,43 @@ void Settings::save() {
                     json_object_set_new(json, "remote_address", json_string(host.remoteAddress.c_str()));
                     json_object_set_new(json, "hostname", json_string(host.hostname.c_str()));
                     json_object_set_new(json, "mac", json_string(host.mac.c_str()));
+#ifdef __SWITCH__
+                    json_object_set_new(json, "wg_enable", host.wg_enable ? json_true() : json_false());
+                    if (json_t* wg = json_object()) {
+                        char private_key[WG_KEY_BASE64_LEN];
+                        if (!wg_key_to_base64(private_key, WG_KEY_BASE64_LEN, host.wg_config.private_key)) {
+                            json_object_set_new(wg, "private_key", json_string(private_key));
+                        }
+                        
+                        char tunnel_ip[INET_ADDRSTRLEN];
+                        if (inet_ntop(AF_INET, &host.wg_config.tunnel_ip, tunnel_ip, INET_ADDRSTRLEN)) {
+                            json_object_set_new(wg, "tunnel_ip", json_string(tunnel_ip));
+                        }
+
+                        char peer_public_key[WG_KEY_BASE64_LEN];
+                        if (!wg_key_to_base64(peer_public_key, WG_KEY_BASE64_LEN, host.wg_config.peer_public_key)) {
+                            json_object_set_new(wg, "peer_public_key", json_string(peer_public_key));
+                        }
+
+                        json_object_set_new(wg, "endpoint_host", json_string(host.wg_config.endpoint_host));
+                        json_object_set_new(wg, "endpoint_port", json_integer(host.wg_config.endpoint_port));
+                        json_object_set_new(wg, "keepalive_interval", json_integer(host.wg_config.keepalive_interval));
+                        json_object_set_new(wg, "mtu", json_integer(host.wg_config.mtu));
+
+                        if (host.wg_config.has_preshared_key) {
+                            char preshared_key[WG_KEY_BASE64_LEN];
+                            if (!wg_key_to_base64(preshared_key, WG_KEY_BASE64_LEN, host.wg_config.preshared_key)) {
+                                json_object_set_new(wg, "preshared_key", json_string(preshared_key));
+                            }
+                        } else {
+                            json_object_set_new(wg, "preshared_key", json_string(""));
+                        }
+
+                        json_object_set_new(wg, "has_preshared_key", host.wg_config.has_preshared_key ? json_true() : json_false());
+
+                        json_object_set_new(json, "wg_config", wg);
+                    }
+#endif
                     if (json_t* apps = json_array()) {
                         for (auto app: host.favorites) {
                             if (json_t* jsonApp = json_object()) {

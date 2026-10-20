@@ -25,6 +25,44 @@
             <brls:InputCell
                 id="hostIP"/>
             
+            <brls:BooleanCell
+                id="wg_enable"/>
+
+            <brls:Header
+                id="wg_header"
+                title="@i18n/add_host/wireguard/config"
+                paddingTop="60"/>
+            
+            <brls:InputCell
+                id="private_key"
+                lineBottom="0"/>
+                
+            <brls:Button
+                id="gen_key"
+                width="240"
+                alignSelf="flexEnd"
+                marginBottom="12"
+                marginRight="12"/>
+            
+            <brls:InputCell
+                id="tunnel_ip"
+                lineTop="1"/>
+            
+            <brls:InputCell
+                id="peer_public_key"/>
+            
+            <brls:InputCell
+                id="endpoint"/>
+            
+            <brls:InputNumericCell
+                id="keepalive_interval"/>
+            
+            <brls:InputNumericCell
+                id="mtu"/>
+            
+            <brls:InputCell
+                id="preshared_key"/>
+            
             <brls:DetailCell
                 id="connect"
                 lineTop="1px"

@@ -25,7 +25,25 @@
         "search": "Search",
         "search_error": "Search is unavailable",
         "search_refresh": "Refresh",
-        "try_connect": "Trying to connect to the host"
+        "try_connect": "Trying to connect to the host",
+        "wireguard": {
+            "enable": "Enable WireGuard",
+            "config": "WireGuard config",
+            "private_key": "Private key",
+            "private_key_error": "Invalid private key",
+            "gen_key": "Generate key pair",
+            "public_key": "Public key",
+            "tunnel_ip": "Tunnel IP",
+            "tunnel_ip_error": "Invalid tunnel IP",
+            "peer_public_key": "Peer public key",
+            "peer_public_key_error": "Invalid peer public key",
+            "endpoint": "Endpoint",
+            "endpoint_error": "Invalid endpoint",
+            "keepalive_interval": "Keepalive interval (optional)",
+            "mtu": "MTU (optional)",
+            "preshared_key": "Preshared key (optional)",
+            "preshared_key_error": "Invalid preshared key"
+        }
     },
     "app_list": {
         "reload_app_list": "Reload",

@@ -23,6 +23,10 @@ extern void darwin_mdns_start(ServerCallback<std::vector<Host>>& callback);
 extern void darwin_mdns_stop();
 #endif
 
+#ifdef __SWITCH__
+#include "WGRelay.hpp"
+#endif
+
 namespace {
 std::string strip_ipv4_port(const std::string& address) {
     const auto firstColon = address.find(':');
@@ -35,6 +39,17 @@ std::string strip_ipv4_port(const std::string& address) {
     }
 
     return address.substr(0, firstColon);
+}
+
+std::string ipv4_port(const std::string& address) {
+    const auto firstColon = address.find(':');
+    if (firstColon == std::string::npos) {
+        return "";
+    }
+    if (address.find(':', firstColon + 1) != std::string::npos) {
+        return "";
+    }
+    return address.substr(firstColon + 1);
 }
 
 bool is_private_ipv4(const in_addr& address) {
@@ -69,6 +84,56 @@ AddHostTab::AddHostTab() {
     hostIP->setPlaceholder("192.168.1.109:47989");
     hostIP->setHint("192.168.1.109:47989");
 
+#ifdef __SWITCH__
+    wg_enable->init("add_host/wireguard/enable"_i18n, false, [this](bool enable) {
+        const auto visibility = enable ? brls::Visibility::VISIBLE : brls::Visibility::GONE;
+        wg_header->setVisibility(visibility);
+        private_key->setVisibility(visibility);
+        gen_key->setVisibility(visibility);
+        tunnel_ip->setVisibility(visibility);
+        peer_public_key->setVisibility(visibility);
+        endpoint->setVisibility(visibility);
+        keepalive_interval->setVisibility(visibility);
+        mtu->setVisibility(visibility);
+        preshared_key->setVisibility(visibility);
+    });
+    private_key->init("add_host/wireguard/private_key"_i18n, "", [](std::string){}, "", "", WG_KEY_BASE64_LEN - 1);
+    gen_key->setText("add_host/wireguard/gen_key"_i18n);
+    gen_key->registerClickAction([this](View* view) {
+        uint8_t priv[WG_KEY_LEN];
+        uint8_t pub[WG_KEY_LEN];
+        char priv_base64[WG_KEY_BASE64_LEN];
+        char pub_base64[WG_KEY_BASE64_LEN];
+        wg_generate_keypair(priv, pub);
+        if (!wg_key_to_base64(priv_base64, WG_KEY_BASE64_LEN, priv) &&
+            !wg_key_to_base64(pub_base64, WG_KEY_BASE64_LEN, pub)
+        ) {
+            private_key->setValue(priv_base64);
+            showAlert("add_host/wireguard/private_key"_i18n + ": " + priv_base64 + "\n\n" +
+                      "add_host/wireguard/public_key"_i18n + ": " + pub_base64);
+        }
+        return true;
+    });
+    tunnel_ip->init("add_host/wireguard/tunnel_ip"_i18n, "", [](std::string){}, "192.168.1.110", "", INET_ADDRSTRLEN - 1);
+    peer_public_key->init("add_host/wireguard/peer_public_key"_i18n, "", [](std::string){}, "", "", WG_KEY_BASE64_LEN - 1);
+    endpoint->init("add_host/wireguard/endpoint"_i18n, "", [](std::string){}, "vpn.example.net:51820", "", WG_MAX_ENDPOINT - 1);
+    keepalive_interval->init("add_host/wireguard/keepalive_interval"_i18n, 0, [](long){}, "", 5);
+    mtu->init("add_host/wireguard/mtu"_i18n, 0, [](long){}, "", 5);
+    preshared_key->init("add_host/wireguard/preshared_key"_i18n, "", [](std::string){}, "", "", WG_KEY_BASE64_LEN - 1);
+    wg_enable->getEvent()->fire(false);
+#else
+    wg_enable->removeFromSuperView(true);
+    wg_header->removeFromSuperView(true);
+    private_key->removeFromSuperView(true);
+    gen_key->removeFromSuperView(true);
+    tunnel_ip->removeFromSuperView(true);
+    peer_public_key->removeFromSuperView(true);
+    endpoint->removeFromSuperView(true);
+    keepalive_interval->removeFromSuperView(true);
+    mtu->removeFromSuperView(true);
+    preshared_key->removeFromSuperView(true);
+#endif
+
     connect->setText("add_host/connect"_i18n);
     connect->registerClickAction([this](View* view) {
         Host host;
@@ -78,6 +143,36 @@ AddHostTab::AddHostTab() {
         } else {
             host.address = inputAddress;
         }
+#ifdef __SWITCH__
+        if (host.wg_enable = wg_enable->isOn()) {
+            if (wg_key_from_base64(host.wg_config.private_key, private_key->getValue().c_str())) {
+                showError("add_host/wireguard/private_key_error"_i18n);
+                return true;
+            }
+            if (inet_pton(AF_INET, tunnel_ip->getValue().c_str(), &host.wg_config.tunnel_ip) != 1) {
+                showError("add_host/wireguard/tunnel_ip_error"_i18n);
+                return true;
+            }
+            if (wg_key_from_base64(host.wg_config.peer_public_key, peer_public_key->getValue().c_str())) {
+                showError("add_host/wireguard/peer_public_key_error"_i18n);
+                return true;
+            }
+            std::string ep = endpoint->getValue();
+            std::string ep_host = strip_ipv4_port(ep);
+            std::strncpy(host.wg_config.endpoint_host, ep_host.c_str(), WG_MAX_ENDPOINT);
+            std::string ep_port = ipv4_port(ep);
+            host.wg_config.endpoint_port = ep_port.empty() ? 51820 : (uint16_t) std::strtoul(ep_port.c_str(), nullptr, 10);
+            host.wg_config.keepalive_interval = keepalive_interval->getValue();
+            host.wg_config.mtu = mtu->getValue();
+            std::string psk = preshared_key->getValue();
+            if (host.wg_config.has_preshared_key = !psk.empty()) {
+                if (wg_key_from_base64(host.wg_config.preshared_key, psk.c_str())) {
+                    showError("add_host/wireguard/preshared_key_error"_i18n);
+                    return true;
+                }
+            }
+        }
+#endif
         connectHost(host);
         return true;
     });
@@ -116,7 +211,7 @@ void AddHostTab::fillSearchBox(const GSResult<std::vector<Host>>& hostsRes) {
 
 void AddHostTab::appendSearchHosts(const std::vector<Host>& hosts) {
     for (const Host& host : hosts) {
-        const auto displayAddress = host.preferred_address();
+        const auto displayAddress = host.real_address();
         if (displayAddress.empty() || searchBoxIpExists(displayAddress))
             continue;
 
