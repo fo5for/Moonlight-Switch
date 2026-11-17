@@ -67,6 +67,7 @@ int WGRelay::set(const Host& host) {
             enabled = true;
             return 1;
         } else {
+            close();
             return 0;
         }
     } else if (enabled) {
