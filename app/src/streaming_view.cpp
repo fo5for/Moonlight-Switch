@@ -10,6 +10,9 @@
 #endif
 
 #include "streaming_view.hpp"
+#ifdef __SWITCH2__
+#include "streaming/video/Vulkan/Switch2VulkanContext.hpp"
+#endif
 #include "AVFrameHolder.hpp"
 #include "InputManager.hpp"
 #include "click_gesture_recognizer.hpp"
@@ -39,29 +42,50 @@ void setBottomBarStatus(const char *value) {
 #endif
 }
 
-void overrideButtonsIfNeeded(bool value) {
+void overrideButtonsIfNeeded(bool value)
+{
 #ifdef PLATFORM_SWITCH
-    ((SwitchInputManager*) brls::Application::getPlatform()->getInputManager())->setScreenshotButtonOverrideMode(ButtonOverrideMode::NONE);
-    ((SwitchInputManager*) brls::Application::getPlatform()->getInputManager())->setHomeButtonOverrideMode(ButtonOverrideMode::NONE);
-    if (!value) return;
+    auto* input = static_cast<SwitchInputManager*>(brls::Application::getPlatform()->getInputManager());
+    input->setHalfJoyConMappingEnabled(value);
+    input->setScreenshotButtonOverrideMode(ButtonOverrideMode::NONE);
+    input->setHomeButtonOverrideMode(ButtonOverrideMode::NONE);
+#ifdef __SWITCH2__
+    input->setChatButtonOverrideMode(ButtonOverrideMode::NONE);
+#endif
+    if (!value)
+        return;
 
-    switch (Settings::instance().get_overlay_system_button()) {
-        case ButtonOverrideType::NONE: break;
+    switch (Settings::instance().get_overlay_system_button())
+    {
+        case ButtonOverrideType::NONE:
+            break;
         case ButtonOverrideType::HOME:
-            ((SwitchInputManager*) brls::Application::getPlatform()->getInputManager())->setHomeButtonOverrideMode(ButtonOverrideMode::CUSTOM_EVENT);
-            break;  
+            input->setHomeButtonOverrideMode(ButtonOverrideMode::CUSTOM_EVENT);
+            break;
         case ButtonOverrideType::SCREENSHOT:
-            ((SwitchInputManager*) brls::Application::getPlatform()->getInputManager())->setScreenshotButtonOverrideMode(ButtonOverrideMode::CUSTOM_EVENT);
+            input->setScreenshotButtonOverrideMode(ButtonOverrideMode::CUSTOM_EVENT);
+            break;
+        case ButtonOverrideType::CHAT:
+#ifdef __SWITCH2__
+            input->setChatButtonOverrideMode(ButtonOverrideMode::CUSTOM_EVENT);
+#endif
             break;
     }
 
-    switch (Settings::instance().get_guide_system_button()) {
-        case ButtonOverrideType::NONE: break;
+    switch (Settings::instance().get_guide_system_button())
+    {
+        case ButtonOverrideType::NONE:
+            break;
         case ButtonOverrideType::HOME:
-            ((SwitchInputManager*) brls::Application::getPlatform()->getInputManager())->setHomeButtonOverrideMode(ButtonOverrideMode::GUIDE_BUTTON);
-            break;  
+            input->setHomeButtonOverrideMode(ButtonOverrideMode::GUIDE_BUTTON);
+            break;
         case ButtonOverrideType::SCREENSHOT:
-            ((SwitchInputManager*) brls::Application::getPlatform()->getInputManager())->setScreenshotButtonOverrideMode(ButtonOverrideMode::GUIDE_BUTTON);
+            input->setScreenshotButtonOverrideMode(ButtonOverrideMode::GUIDE_BUTTON);
+            break;
+        case ButtonOverrideType::CHAT:
+#ifdef __SWITCH2__
+            input->setChatButtonOverrideMode(ButtonOverrideMode::GUIDE_BUTTON);
+#endif
             break;
     }
 #endif
@@ -198,8 +222,8 @@ StreamingView::StreamingView(const Host& host, const AppInfo& app) : host(host),
                     Logger::debug("Scroll on: {}",
                                   threshold - this->touchScrollCounter);
                     int invert = Settings::instance().swap_mouse_scroll() ? -1 : 1;
-                    char scrollCount = threshold - this->touchScrollCounter;
-                    LiSendScrollEvent(scrollCount * invert);
+                    const int scrollCount = threshold - this->touchScrollCounter;
+                    MoonlightInputManager::instance().sendMouseScroll({0, static_cast<float>(scrollCount * invert)});
                     this->touchScrollCounter = threshold;
                 }
             });
@@ -239,6 +263,10 @@ StreamingView::StreamingView(const Host& host, const AppInfo& app) : host(host),
 }
 
 void StreamingView::onFocusGained() {
+#ifdef __SWITCH2__
+    if (auto* context = Switch2VulkanContext::current())
+        context->setFrameDriven(true);
+#endif
     Box::onFocusGained();
 
     MoonlightInputManager::instance().setInputEnabled(true);
@@ -264,6 +292,10 @@ void StreamingView::onFocusGained() {
 }
 
 void StreamingView::onFocusLost() {
+#ifdef __SWITCH2__
+    if (auto* context = Switch2VulkanContext::current())
+        context->setFrameDriven(false);
+#endif
     Box::onFocusLost();
 
     MoonlightInputManager::instance().setInputEnabled(false);
@@ -524,6 +556,10 @@ void StreamingView::handleOverlayCombo() {
 
     if (Settings::instance().get_overlay_system_button() == ButtonOverrideType::SCREENSHOT)
         systemButtonOverlayPressed |= ((SwitchInputManager*) Application::getPlatform()->getInputManager())->isScreenshotButtonPressed();
+#ifdef __SWITCH2__
+    if (Settings::instance().get_overlay_system_button() == ButtonOverrideType::CHAT)
+        systemButtonOverlayPressed |= ((SwitchInputManager*) Application::getPlatform()->getInputManager())->isChatButtonPressed();
+#endif
 
     if (oldSystemButtonOverlayPressed != systemButtonOverlayPressed) {
         oldSystemButtonOverlayPressed = systemButtonOverlayPressed;
@@ -585,6 +621,10 @@ void StreamingView::onLayout() {
 }
 
 StreamingView::~StreamingView() {
+#ifdef __SWITCH2__
+    if (auto* context = Switch2VulkanContext::current())
+        context->setFrameDriven(false);
+#endif
 #ifdef PLATFORM_TVOS
     updatePreferredDisplayMode(false);
 #endif
