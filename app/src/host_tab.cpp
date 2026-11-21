@@ -20,7 +20,10 @@ using namespace brls::literals;
 namespace {
 std::string host_subtitle(const Host& host) {
     std::string subtitle = host.address;
-    if (!host.remoteAddress.empty() && host.remoteAddress != host.address) {
+    if (host.wg_enable) {
+        subtitle += " via ";
+        subtitle += host.wg_config.endpoint_host;
+    } else if (!host.remoteAddress.empty() && host.remoteAddress != host.address) {
         subtitle = subtitle.empty() ? host.remoteAddress
                                     : subtitle + " | " + host.remoteAddress;
     }
@@ -147,7 +150,8 @@ void HostTab::reloadHost() {
                 const auto connectedAddress =
                     GameStreamClient::instance().active_address(this->host);
                 header->setTitle("host/status"_i18n + ": " + "host/ready"_i18n);
-                header->setSubtitle(connectedAddress.empty()
+                if (!this->host.wg_enable)
+                    header->setSubtitle(connectedAddress.empty()
                                         ? host_subtitle(this->host)
                                         : connectedAddress);
                 connect->setText("host/connect"_i18n);
