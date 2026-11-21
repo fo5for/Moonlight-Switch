@@ -11,6 +11,10 @@
 #include "helper.hpp"
 #include "main_tabs_view.hpp"
 
+#ifdef __SWITCH__
+#include "WGRelay.hpp"
+#endif
+
 using namespace brls::literals;
 
 namespace {
@@ -119,10 +123,21 @@ HostTab::HostTab(const Host& host) : host(host) {
 
 void HostTab::reloadHost() {
     state = FETCHING;
+#ifdef __SWITCH__
+    header->setTitle("host/status"_i18n + ": " + "host/wg_setup"_i18n);
+#else
     header->setTitle("host/status"_i18n + ": " + "host/fetching"_i18n);
+#endif
     header->setSubtitle(host_subtitle(host));
     connect->setText("host/wait"_i18n);
 
+#ifdef __SWITCH__
+    ASYNC_RETAIN
+    WGRelay::instance().set(host, [ASYNC_TOKEN](int wg) {
+        ASYNC_RELEASE
+        if (wg) {
+            header->setTitle("host/status"_i18n + ": " + "host/fetching"_i18n);
+#endif
     ASYNC_RETAIN
     GameStreamClient::instance().connect(
         host, [ASYNC_TOKEN](const GSResult<SERVER_DATA>& result) {
@@ -144,4 +159,10 @@ void HostTab::reloadHost() {
                 state = UNAVAILABLE;
             }
         });
+#ifdef __SWITCH__
+        } else {
+            header->setTitle("host/status"_i18n + ": " + "host/wg_fail"_i18n);
+        }
+    });
+#endif
 }

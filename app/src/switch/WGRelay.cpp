@@ -33,12 +33,14 @@ WGRelay::~WGRelay() {
     close();
 }
 
-int WGRelay::set(const Host& host) {
+void WGRelay::set(const Host& host, const std::function<void(int)>& callback) {
+    brls::async([this, host, callback] {
     if (host.wg_enable) {
         std::string new_target = host.real_address();
         if (enabled) {
             if (target == new_target && std::memcmp(&config, &host.wg_config, sizeof(WgConfig)) == 0) {
-                return 1;
+                brls::sync([callback] { callback(1); });
+                return;
             } else {
                 close();
             }
@@ -66,20 +68,21 @@ int WGRelay::set(const Host& host) {
                 relay->startUdpRelay(target_port + 21, target_port + 21)
             ) {
                 enabled = true;
-                return 1;
+                brls::sync([callback] { callback(1); });
             } else {
                 close();
-                return 0;
+                brls::sync([callback] { callback(0); });
             }
         } catch (const std::system_error& e) {
             brls::Logger::error("WGRelay: failed to start relay: {} ({})", e.what(), e.code().value());
             close();
-            return 0;
+            brls::sync([callback] { callback(0); });
         }
-    } else if (enabled) {
+    } else {
         close();
+        brls::sync([callback] { callback(-1); });
     }
-    return -1;
+    });
 }
 
 void WGRelay::close() {

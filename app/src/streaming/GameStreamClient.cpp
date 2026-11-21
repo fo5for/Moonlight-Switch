@@ -30,7 +30,6 @@
 #endif
 
 #if defined(__SWITCH__)
-#include "WGRelay.hpp"
 #include <switch.h>
 
 // TODO: Remove when presented in LibNX
@@ -619,9 +618,6 @@ std::string GameStreamClient::active_address(const Host& host) const {
 
 void GameStreamClient::connect(const Host& host,
                                ServerCallback<SERVER_DATA>& callback) {
-#ifdef __SWITCH__
-    WGRelay::instance().set(host);
-#endif
     connect_to_addresses(host.connection_addresses(), host_key(host), callback);
 }
 

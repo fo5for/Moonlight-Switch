@@ -287,11 +287,23 @@ void AddHostTab::stopSearchHost() {
 void AddHostTab::connectHost(const Host& host) {
     pauseSearching();
 
+#ifdef __SWITCH__
+    Dialog* wgLoaderView = createLoadingDialog("add_host/wg_setup"_i18n);
+    wgLoaderView->open();
+
+    ASYNC_RETAIN
+    WGRelay::instance().set(host, [ASYNC_TOKEN, wgLoaderView, host](int wg) {
+        ASYNC_RELEASE
+        if (wg) {
+            wgLoaderView->close([ASYNC_TOKEN, host] {
+#endif
     Dialog* loaderView = createLoadingDialog("add_host/try_connect"_i18n);
     loaderView->open();
 
+    ASYNC_RETAIN
     GameStreamClient::instance().connect(
-        host, [this, loaderView, host](const GSResult<SERVER_DATA>& result) {
+        host, [ASYNC_TOKEN, loaderView, host](const GSResult<SERVER_DATA>& result) {
+            ASYNC_RELEASE
             loaderView->close([this, result, host] {
                 if (result.isSuccess()) {
                     Host pairedHost = host;
@@ -339,6 +351,14 @@ void AddHostTab::connectHost(const Host& host) {
                 }
             });
         });
+#ifdef __SWITCH__
+            });
+        } else {
+            showError("add_host/wg_fail"_i18n,
+                      [] { AddHostTab::startSearching(); });
+        }
+    });
+#endif
 }
 
 void AddHostTab::pauseSearching() {

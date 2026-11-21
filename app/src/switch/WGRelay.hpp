@@ -5,6 +5,7 @@
 #include "wg_lwip_relay.hpp"
 #include <borealis.hpp>
 #include <string>
+#include <functional>
 
 struct Host;
 constexpr size_t WG_KEY_BASE64_LEN = WG_KEY_LEN * 8 / 6 + 3;
@@ -13,7 +14,7 @@ class WGRelay : public Singleton<WGRelay> {
   public:
     ~WGRelay();
 
-    int set(const Host& host);
+    void set(const Host& host, const std::function<void(int)>& callback);
     void close();
 
   private:

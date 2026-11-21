@@ -36,6 +36,8 @@
         "search_error": "Search is unavailable",
         "search_refresh": "Refresh",
         "try_connect": "Trying to connect to the host",
+        "wg_fail": "Failed to configure WireGuard tunnel",
+        "wg_setup": "Configuring WireGuard tunnel",
         "wireguard": {
             "enable": "Enable WireGuard",
             "config": "WireGuard config",
@@ -111,7 +113,9 @@
         "wait": "Wait...",
         "wake_up": "Wake up",
         "wake_up_error": "Could not wake up the host",
-        "wake_up_message": "Sending Wake Up"
+        "wake_up_message": "Sending Wake Up",
+        "wg_fail": "Failed to configure WireGuard tunnel",
+        "wg_setup": "Configuring WireGuard tunnel..."
     },
     "mapping_layout_editor": {
         "remove": "Remove layout",
